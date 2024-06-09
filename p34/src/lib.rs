@@ -1,4 +1,3 @@
-#[allow(special_module_name)]
 use std::fmt;
 use std::str::FromStr;
 
@@ -15,8 +14,13 @@ impl BigUint4096 {
     }
 
     pub fn from_hex_str(hex_str: &str) -> Result<Self, String> {
-        let mut bytes = hex::decode(hex_str)
-            .map_err(|e| format!("Hex decode error: {}", e))?;
+        let hex_str = if hex_str.len() % 2 == 0 {
+            hex_str.to_string()
+        } else {
+            format!("0{}", hex_str) // Prepend a '0' to make it even length
+        };
+
+        let mut bytes = hex::decode(hex_str).map_err(|e| format!("Hex decode error: {}", e))?;
         let mut data = [0; NUM_WORDS];
 
         let data_len = data.len();
@@ -47,7 +51,7 @@ impl BigUint4096 {
 
             hex_string.push_str(&hex::encode(bytes));
         }
-
+        // Remove leading zeros
         hex_string.trim_start_matches('0').to_string()
     }
 
