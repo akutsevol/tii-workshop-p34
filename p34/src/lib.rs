@@ -1,16 +1,14 @@
 use std::fmt;
 use std::str::FromStr;
 
-const NUM_WORDS: usize = 64; // 64 * 64 = 4096 bits
-
 #[derive(Clone, Debug)]
-pub struct BigUint4096 {
-    data: [u64; NUM_WORDS],
+pub struct BigUint<const N: usize> {
+    data: [u64; N],
 }
 
-impl BigUint4096 {
+impl<const N: usize> BigUint<N> {
     pub fn new() -> Self {
-        BigUint4096 { data: [0; NUM_WORDS] }
+        BigUint { data: [0; N] }
     }
 
     pub fn from_hex_str(hex_str: &str) -> Result<Self, String> {
@@ -20,8 +18,8 @@ impl BigUint4096 {
             format!("0{}", hex_str) // Prepend a '0' to make it even length
         };
 
-        let mut bytes = hex::decode(hex_str).map_err(|e| format!("Hex decode error: {}", e))?;
-        let mut data = [0; NUM_WORDS];
+        let mut bytes = hex::decode(&hex_str).map_err(|e| format!("Hex decode error: {}", e))?;
+        let mut data = [0; N];
 
         let data_len = data.len();
         // add leading '0' for furhter fast processing
@@ -34,12 +32,15 @@ impl BigUint4096 {
         }
 
         for (i, chunk) in bytes.chunks(8).enumerate() {
+            if i >= N {
+                break;
+            }
             let mut word = [0u8; 8];
             word.copy_from_slice(chunk);
             data[data_len - 1 - i] = u64::from_be_bytes(word);
         }
 
-        Ok(BigUint4096 { data })
+        Ok(BigUint { data })
     }
 
     pub fn to_hex_string(&self) -> String {
@@ -48,33 +49,32 @@ impl BigUint4096 {
         for &word in &self.data {
             if word == 0 { continue; }
             let bytes = word.to_be_bytes();
-
             hex_string.push_str(&hex::encode(bytes));
         }
+
         // Remove leading zeros
         hex_string.trim_start_matches('0').to_string()
     }
 
     // Addition
     pub fn add(&self, other: &Self) -> Self {
-        let mut result = BigUint4096::new();
+        let mut result = BigUint::new();
         let mut carry = 0;
-    
-        for i in (0..NUM_WORDS).rev() {
+        for i in (0..N).rev() {
             let sum = self.data[i].wrapping_add(other.data[i]).wrapping_add(carry);
             result.data[i] = sum & u64::MAX; // Mask to handle overflow
             carry = if sum > u64::MAX { 1 } else { 0 }; // Calculate carry
         }
-    
+
         result
     }
 
     // Subtraction
     pub fn sub(&self, other: &Self) -> Self {
-        let mut result = BigUint4096::new();
+        let mut result = BigUint::new();
         let mut borrow = 0;
 
-        for i in (0..NUM_WORDS).rev() {
+        for i in (0..N).rev() {
             let diff = self.data[i].wrapping_sub(other.data[i]).wrapping_sub(borrow);
             result.data[i] = diff;
             borrow = (diff >> 63) & 1; // Check if the subtraction caused underflow
@@ -84,15 +84,15 @@ impl BigUint4096 {
     }
 }
 
-impl FromStr for BigUint4096 {
+impl<const N: usize> FromStr for BigUint<N> {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        BigUint4096::from_hex_str(s)
+        BigUint::from_hex_str(s)
     }
 }
 
-impl fmt::Display for BigUint4096 {
+impl<const N: usize> fmt::Display for BigUint<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_hex_string())
     }
@@ -105,29 +105,29 @@ mod tests {
     #[test]
     fn test_from_hex_str_and_to_hex_string() {
         let hex_str = "123456789abcdef0";
-        let big_uint = BigUint4096::from_hex_str(hex_str).unwrap();
-        assert_eq!(big_uint.to_hex_string(), hex_str);
+        let big_uint = BigUint::<24>::from_hex_str(hex_str).unwrap();
+        assert_eq!(big_uint.to_hex_string(), hex_str.to_lowercase());
     }
 
     #[test]
     fn test_display_trait() {
         let hex_str = "123456789abcdef0";
-        let big_uint = BigUint4096::from_hex_str(hex_str).unwrap();
-        assert_eq!(format!("{}", big_uint), hex_str);
+        let big_uint = BigUint::<32>::from_hex_str(hex_str).unwrap();
+        assert_eq!(format!("{}", big_uint), hex_str.to_lowercase());
     }
 
     #[test]
     fn test_addition() {
-        let num1 = BigUint4096::from_hex_str("1234").unwrap();
-        let num2 = BigUint4096::from_hex_str("5678").unwrap();
+        let num1 = BigUint::<12>::from_hex_str("1234").unwrap();
+        let num2 = BigUint::<12>::from_hex_str("5678").unwrap();
         let result = num1.add(&num2);
         assert_eq!(result.to_hex_string(), "68ac");
     }
 
     #[test]
     fn test_subtraction() {
-        let num1 = BigUint4096::from_hex_str("5678").unwrap();
-        let num2 = BigUint4096::from_hex_str("1234").unwrap();
+        let num1 = BigUint::<5>::from_hex_str("5678").unwrap();
+        let num2 = BigUint::<5>::from_hex_str("1234").unwrap();
         let result = num1.sub(&num2);
         assert_eq!(result.to_hex_string(), "4444");
     }
