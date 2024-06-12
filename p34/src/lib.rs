@@ -6,6 +6,12 @@ pub struct BigUint<const N: usize> {
     data: [u64; N],
 }
 
+impl<const N: usize> Default for BigUint<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize> BigUint<N> {
     pub fn new() -> Self {
         BigUint { data: [0; N] }
@@ -18,7 +24,7 @@ impl<const N: usize> BigUint<N> {
             format!("0{}", hex_str) // Prepend a '0' to make it even length
         };
 
-        let mut bytes = hex::decode(&hex_str).map_err(|e| format!("Hex decode error: {}", e))?;
+        let mut bytes = hex::decode(hex_str).map_err(|e| format!("Hex decode error: {}", e))?;
         let mut data = [0; N];
 
         let data_len = data.len();
@@ -47,7 +53,9 @@ impl<const N: usize> BigUint<N> {
         let mut hex_string = String::new();
 
         for &word in &self.data {
-            if word == 0 { continue; }
+            if word == 0 {
+                continue;
+            }
             let bytes = word.to_be_bytes();
             hex_string.push_str(&hex::encode(bytes));
         }
@@ -63,7 +71,7 @@ impl<const N: usize> BigUint<N> {
         for i in (0..N).rev() {
             let sum = self.data[i].wrapping_add(other.data[i]).wrapping_add(carry);
             result.data[i] = sum & u64::MAX; // Mask to handle overflow
-            carry = if sum > u64::MAX { 1 } else { 0 }; // Calculate carry
+            carry = if sum == u64::MAX { 1 } else { 0 }; // Calculate carry
         }
 
         result
@@ -75,7 +83,9 @@ impl<const N: usize> BigUint<N> {
         let mut borrow = 0;
 
         for i in (0..N).rev() {
-            let diff = self.data[i].wrapping_sub(other.data[i]).wrapping_sub(borrow);
+            let diff = self.data[i]
+                .wrapping_sub(other.data[i])
+                .wrapping_sub(borrow);
             result.data[i] = diff;
             borrow = (diff >> 63) & 1; // Check if the subtraction caused underflow
         }
