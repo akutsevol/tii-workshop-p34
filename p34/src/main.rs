@@ -1,8 +1,6 @@
-mod lib;
-
 fn main() {
-    use crate::lib::BigUint4096;
- 
+    use p34::BigUint4096;
+
     let hex_str = "0505";
     let big_uint = BigUint4096::from_hex_str(hex_str).unwrap();
     println!("{:?}", big_uint.to_hex_string());

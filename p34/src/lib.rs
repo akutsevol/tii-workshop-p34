@@ -8,9 +8,17 @@ pub struct BigUint4096 {
     data: [u64; NUM_WORDS],
 }
 
+impl Default for BigUint4096 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BigUint4096 {
     pub fn new() -> Self {
-        BigUint4096 { data: [0; NUM_WORDS] }
+        BigUint4096 {
+            data: [0; NUM_WORDS],
+        }
     }
 
     pub fn from_hex_str(hex_str: &str) -> Result<Self, String> {
@@ -46,7 +54,9 @@ impl BigUint4096 {
         let mut hex_string = String::new();
 
         for &word in &self.data {
-            if word == 0 { continue; }
+            if word == 0 {
+                continue;
+            }
             let bytes = word.to_be_bytes();
 
             hex_string.push_str(&hex::encode(bytes));
@@ -59,13 +69,13 @@ impl BigUint4096 {
     pub fn add(&self, other: &Self) -> Self {
         let mut result = BigUint4096::new();
         let mut carry = 0;
-    
+
         for i in (0..NUM_WORDS).rev() {
             let sum = self.data[i].wrapping_add(other.data[i]).wrapping_add(carry);
             result.data[i] = sum & u64::MAX; // Mask to handle overflow
-            carry = if sum > u64::MAX { 1 } else { 0 }; // Calculate carry
+            carry = if sum == u64::MAX { 1 } else { 0 }; // Calculate carry
         }
-    
+
         result
     }
 
@@ -75,7 +85,9 @@ impl BigUint4096 {
         let mut borrow = 0;
 
         for i in (0..NUM_WORDS).rev() {
-            let diff = self.data[i].wrapping_sub(other.data[i]).wrapping_sub(borrow);
+            let diff = self.data[i]
+                .wrapping_sub(other.data[i])
+                .wrapping_sub(borrow);
             result.data[i] = diff;
             borrow = (diff >> 63) & 1; // Check if the subtraction caused underflow
         }
